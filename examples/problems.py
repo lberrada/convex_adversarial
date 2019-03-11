@@ -16,8 +16,10 @@ from convex_adversarial import epsilon_from_model, DualNetBounds
 from convex_adversarial import Dense, DenseSequential
 import math
 import os
+import logger
+import setproctitle
 
-def model_wide(in_ch, out_width, k): 
+def model_wide(in_ch, out_width, k):
     model = nn.Sequential(
         nn.Conv2d(in_ch, 4*k, 4, stride=2, padding=1),
         nn.ReLU(),
@@ -30,13 +32,13 @@ def model_wide(in_ch, out_width, k):
     )
     return model
 
-def model_deep(in_ch, out_width, k, n1=8, n2=16, linear_size=100): 
-    def group(inf, outf, N): 
-        if N == 1: 
-            conv = [nn.Conv2d(inf, outf, 4, stride=2, padding=1), 
+def model_deep(in_ch, out_width, k, n1=8, n2=16, linear_size=100):
+    def group(inf, outf, N):
+        if N == 1:
+            conv = [nn.Conv2d(inf, outf, 4, stride=2, padding=1),
                          nn.ReLU()]
-        else: 
-            conv = [nn.Conv2d(inf, outf, 3, stride=1, padding=1), 
+        else:
+            conv = [nn.Conv2d(inf, outf, 3, stride=1, padding=1),
                          nn.ReLU()]
             for _ in range(1,N-1):
                 conv.append(nn.Conv2d(outf, outf, 3, stride=1, padding=1))
@@ -50,7 +52,7 @@ def model_deep(in_ch, out_width, k, n1=8, n2=16, linear_size=100):
 
 
     model = nn.Sequential(
-        *conv1, 
+        *conv1,
         *conv2,
         Flatten(),
         nn.Linear(n2*out_width*out_width,linear_size),
@@ -63,14 +65,14 @@ class Flatten(nn.Module):
     def forward(self, x):
         return x.view(x.size(0), -1)
 
-def mnist_loaders(batch_size, shuffle_test=False): 
+def mnist_loaders(batch_size, shuffle_test=False):
     mnist_train = datasets.MNIST("./data", train=True, download=True, transform=transforms.ToTensor())
     mnist_test = datasets.MNIST("./data", train=False, download=True, transform=transforms.ToTensor())
     train_loader = torch.utils.data.DataLoader(mnist_train, batch_size=batch_size, shuffle=True, pin_memory=True)
     test_loader = torch.utils.data.DataLoader(mnist_test, batch_size=batch_size, shuffle=shuffle_test, pin_memory=True)
     return train_loader, test_loader
 
-def fashion_mnist_loaders(batch_size): 
+def fashion_mnist_loaders(batch_size):
     mnist_train = datasets.MNIST("./fashion_mnist", train=True,
        download=True, transform=transforms.ToTensor())
     mnist_test = datasets.MNIST("./fashion_mnist", train=False,
@@ -79,7 +81,7 @@ def fashion_mnist_loaders(batch_size):
     test_loader = torch.utils.data.DataLoader(mnist_test, batch_size=batch_size, shuffle=False, pin_memory=True)
     return train_loader, test_loader
 
-def mnist_500(): 
+def mnist_500():
     model = nn.Sequential(
         Flatten(),
         nn.Linear(28*28,500),
@@ -89,7 +91,7 @@ def mnist_500():
     return model
 
 
-def mnist_model(): 
+def mnist_model():
     model = nn.Sequential(
         nn.Conv2d(1, 16, 4, stride=2, padding=1),
         nn.ReLU(),
@@ -102,13 +104,13 @@ def mnist_model():
     )
     return model
 
-def mnist_model_wide(k): 
+def mnist_model_wide(k):
     return model_wide(1, 7, k)
 
-def mnist_model_deep(k): 
+def mnist_model_deep(k):
     return model_deep(1, 7, k)
 
-def mnist_model_large(): 
+def mnist_model_large():
     model = nn.Sequential(
         nn.Conv2d(1, 32, 3, stride=1, padding=1),
         nn.ReLU(),
@@ -127,17 +129,17 @@ def mnist_model_large():
     )
     return model
 
-def replace_10_with_0(y): 
+def replace_10_with_0(y):
     return y % 10
 
-def svhn_loaders(batch_size): 
+def svhn_loaders(batch_size):
     train = datasets.SVHN("./data", split='train', download=True, transform=transforms.ToTensor(), target_transform=replace_10_with_0)
     test = datasets.SVHN("./data", split='test', download=True, transform=transforms.ToTensor(), target_transform=replace_10_with_0)
     train_loader = torch.utils.data.DataLoader(train, batch_size=batch_size, shuffle=True, pin_memory=True)
     test_loader = torch.utils.data.DataLoader(test, batch_size=batch_size, shuffle=False, pin_memory=True)
     return train_loader, test_loader
 
-def svhn_model(): 
+def svhn_model():
     model = nn.Sequential(
         nn.Conv2d(3, 16, 4, stride=2, padding=1),
         nn.ReLU(),
@@ -150,7 +152,7 @@ def svhn_model():
     ).cuda()
     return model
 
-def har_loaders(batch_size):     
+def har_loaders(batch_size):
     X_te = torch.from_numpy(np.loadtxt('./data/UCI HAR Dataset/test/X_test.txt')).float()
     X_tr = torch.from_numpy(np.loadtxt('./data/UCI HAR Dataset/train/X_train.txt')).float()
     y_te = torch.from_numpy(np.loadtxt('./data/UCI HAR Dataset/test/y_test.txt')-1).long()
@@ -163,7 +165,7 @@ def har_loaders(batch_size):
     test_loader = torch.utils.data.DataLoader(har_test, batch_size=batch_size, shuffle=False, pin_memory=True)
     return train_loader, test_loader
 
-def har_500_model(): 
+def har_500_model():
     model = nn.Sequential(
         nn.Linear(561, 500),
         nn.ReLU(),
@@ -171,7 +173,7 @@ def har_500_model():
     )
     return model
 
-def har_500_250_model(): 
+def har_500_250_model():
     model = nn.Sequential(
         nn.Linear(561, 500),
         nn.ReLU(),
@@ -181,7 +183,7 @@ def har_500_250_model():
     )
     return model
 
-def har_500_250_100_model(): 
+def har_500_250_100_model():
     model = nn.Sequential(
         nn.Linear(561, 500),
         nn.ReLU(),
@@ -193,27 +195,27 @@ def har_500_250_100_model():
     )
     return model
 
-def har_resnet_model(): 
+def har_resnet_model():
     model = DenseSequential(
-        Dense(nn.Linear(561, 561)), 
-        nn.ReLU(), 
+        Dense(nn.Linear(561, 561)),
+        nn.ReLU(),
         Dense(nn.Sequential(), None, nn.Linear(561,561)),
-        nn.ReLU(), 
+        nn.ReLU(),
         nn.Linear(561,6)
         )
     return model
 
-def cifar_loaders(batch_size, shuffle_test=False): 
+def cifar_loaders(batch_size, shuffle_test=False):
     normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
                                      std=[0.225, 0.225, 0.225])
-    train = datasets.CIFAR10('./data', train=True, download=True, 
+    train = datasets.CIFAR10('./data', train=True, download=True,
         transform=transforms.Compose([
             transforms.RandomHorizontalFlip(),
             transforms.RandomCrop(32, 4),
             transforms.ToTensor(),
             normalize,
         ]))
-    test = datasets.CIFAR10('./data', train=False, 
+    test = datasets.CIFAR10('./data', train=False,
         transform=transforms.Compose([transforms.ToTensor(), normalize]))
     train_loader = torch.utils.data.DataLoader(train, batch_size=batch_size,
         shuffle=True, pin_memory=True)
@@ -221,7 +223,7 @@ def cifar_loaders(batch_size, shuffle_test=False):
         shuffle=shuffle_test, pin_memory=True)
     return train_loader, test_loader
 
-def cifar_model(): 
+def cifar_model():
     model = nn.Sequential(
         nn.Conv2d(3, 16, 4, stride=2, padding=1),
         nn.ReLU(),
@@ -239,7 +241,7 @@ def cifar_model():
             m.bias.data.zero_()
     return model
 
-def cifar_model_large(): 
+def cifar_model_large():
     model = nn.Sequential(
         nn.Conv2d(3, 32, 3, stride=1, padding=1),
         nn.ReLU(),
@@ -264,61 +266,61 @@ def cifar_model_large():
             m.bias.data.zero_()
     return model
 
-def cifar_model_resnet(N = 5, factor=10): 
-    def  block(in_filters, out_filters, k, downsample): 
-        if not downsample: 
+def cifar_model_resnet(N = 5, factor=10):
+    def  block(in_filters, out_filters, k, downsample):
+        if not downsample:
             k_first = 3
             skip_stride = 1
             k_skip = 1
-        else: 
+        else:
             k_first = 4
             skip_stride = 2
             k_skip = 2
         return [
-            Dense(nn.Conv2d(in_filters, out_filters, k_first, stride=skip_stride, padding=1)), 
-            nn.ReLU(), 
-            Dense(nn.Conv2d(in_filters, out_filters, k_skip, stride=skip_stride, padding=0), 
-                  None, 
-                  nn.Conv2d(out_filters, out_filters, k, stride=1, padding=1)), 
+            Dense(nn.Conv2d(in_filters, out_filters, k_first, stride=skip_stride, padding=1)),
+            nn.ReLU(),
+            Dense(nn.Conv2d(in_filters, out_filters, k_skip, stride=skip_stride, padding=0),
+                  None,
+                  nn.Conv2d(out_filters, out_filters, k, stride=1, padding=1)),
             nn.ReLU()
         ]
     conv1 = [nn.Conv2d(3,16,3,stride=1,padding=1), nn.ReLU()]
     conv2 = block(16,16*factor,3, False)
-    for _ in range(N): 
+    for _ in range(N):
         conv2.extend(block(16*factor,16*factor,3, False))
     conv3 = block(16*factor,32*factor,3, True)
-    for _ in range(N-1): 
+    for _ in range(N-1):
         conv3.extend(block(32*factor,32*factor,3, False))
     conv4 = block(32*factor,64*factor,3, True)
-    for _ in range(N-1): 
+    for _ in range(N-1):
         conv4.extend(block(64*factor,64*factor,3, False))
     layers = (
-        conv1 + 
-        conv2 + 
-        conv3 + 
+        conv1 +
+        conv2 +
+        conv3 +
         conv4 +
         [Flatten(),
-        nn.Linear(64*factor*8*8,1000), 
-        nn.ReLU(), 
+        nn.Linear(64*factor*8*8,1000),
+        nn.ReLU(),
         nn.Linear(1000, 10)]
         )
     model = DenseSequential(
         *layers
     )
-    
+
     for m in model.modules():
         if isinstance(m, nn.Conv2d):
             n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
             m.weight.data.normal_(0, math.sqrt(2. / n))
-            if m.bias is not None: 
+            if m.bias is not None:
                 m.bias.data.zero_()
     return model
 
-def argparser(batch_size=50, epochs=20, seed=0, verbose=1, lr=1e-3, 
-              epsilon=0.1, starting_epsilon=None, 
-              proj=None, 
-              norm_train='l1', norm_test='l1', 
-              opt='sgd', momentum=0.9, weight_decay=5e-4): 
+def argparser(batch_size=50, epochs=20, seed=0, verbose=1, lr=1e-3,
+              epsilon=0.1, starting_epsilon=None,
+              proj=None,
+              norm_train='l1', norm_test='l1',
+              opt='sgd', momentum=0.9, weight_decay=5e-4):
 
     parser = argparse.ArgumentParser()
 
@@ -351,68 +353,68 @@ def argparser(batch_size=50, epochs=20, seed=0, verbose=1, lr=1e-3,
 
 
     # other arguments
-    parser.add_argument('--prefix')
+    parser.add_argument('--prefix', default='./xp/xp')
     parser.add_argument('--load')
     parser.add_argument('--real_time', action='store_true')
     parser.add_argument('--seed', type=int, default=seed)
     parser.add_argument('--verbose', type=int, default=verbose)
     parser.add_argument('--cuda_ids', default=None)
 
-    
+
     args = parser.parse_args()
     if args.starting_epsilon is None:
-        args.starting_epsilon = args.epsilon 
-    if args.prefix: 
-        if args.model is not None: 
+        args.starting_epsilon = args.epsilon
+    if args.prefix:
+        if args.model is not None:
             args.prefix += '_'+args.model
 
-        if args.method is not None: 
+        if args.method is not None:
             args.prefix += '_'+args.method
 
         banned = ['verbose', 'prefix',
-                  'resume', 'baseline', 'eval', 
-                  'method', 'model', 'cuda_ids', 'load', 'real_time', 
+                  'resume', 'baseline', 'eval',
+                  'method', 'model', 'cuda_ids', 'load', 'real_time',
                   'test_batch_size']
         if args.method == 'baseline':
-            banned += ['epsilon', 'starting_epsilon', 'schedule_length', 
+            banned += ['epsilon', 'starting_epsilon', 'schedule_length',
                        'l1_test', 'l1_train', 'm', 'l1_proj']
 
         # Ignore these parameters for filename since we never change them
         banned += ['momentum', 'weight_decay']
 
-        if args.cascade == 1: 
+        if args.cascade == 1:
             banned += ['cascade']
 
-        # if not using a model that uses model_factor, 
+        # if not using a model that uses model_factor,
         # ignore model_factor
-        if args.model not in ['wide', 'deep']: 
+        if args.model not in ['wide', 'deep']:
             banned += ['model_factor']
 
-        # if args.model != 'resnet': 
+        # if args.model != 'resnet':
         banned += ['resnet_N', 'resnet_factor']
 
-        for arg in sorted(vars(args)): 
-            if arg not in banned and getattr(args,arg) is not None: 
+        for arg in sorted(vars(args)):
+            if arg not in banned and getattr(args,arg) is not None:
                 args.prefix += '_' + arg + '_' +str(getattr(args, arg))
 
-        if args.schedule_length > args.epochs: 
+        if args.schedule_length > args.epochs:
             raise ValueError('Schedule length for epsilon ({}) is greater than '
                              'number of epochs ({})'.format(args.schedule_length, args.epochs))
-    else: 
+    else:
         args.prefix = 'temporary'
 
-    if args.cuda_ids is not None: 
+    if args.cuda_ids is not None:
         print('Setting CUDA_VISIBLE_DEVICES to {}'.format(args.cuda_ids))
         os.environ['CUDA_VISIBLE_DEVICES'] = args.cuda_ids
 
 
     return args
 
-def args2kwargs(args, X=None): 
+def args2kwargs(args, X=None):
 
-    if args.proj is not None: 
+    if args.proj is not None:
         kwargs = {
-            'proj' : args.proj, 
+            'proj' : args.proj,
         }
     else:
         kwargs = {
@@ -422,7 +424,7 @@ def args2kwargs(args, X=None):
 
 
 
-def argparser_evaluate(epsilon=0.1, norm='l1'): 
+def argparser_evaluate(epsilon=0.1, norm='l1'):
 
     parser = argparse.ArgumentParser()
 
@@ -440,12 +442,36 @@ def argparser_evaluate(epsilon=0.1, norm='l1'):
     parser.add_argument('--verbose', type=int, default=True)
     parser.add_argument('--cuda_ids', default=None)
 
-    
+
     args = parser.parse_args()
 
-    if args.cuda_ids is not None: 
+    if args.cuda_ids is not None:
         print('Setting CUDA_VISIBLE_DEVICES to {}'.format(args.cuda_ids))
         os.environ['CUDA_VISIBLE_DEVICES'] = args.cuda_ids
 
 
     return args
+
+
+def create_xp(args):
+    logger.set_default_indexing('increment')
+    xp_name = "{}_{}_{}".format(args.opt, args.lr, args.weight_decay)
+    setproctitle.setproctitle(xp_name)
+    plotter = logger.Plotter(visdom_opts={'server': 'http://atlas.robots.ox.ac.uk', 'port': 9006, 'env': xp_name}, mode='automatic')
+    xp = logger.Experiment(name=xp_name, plotter=plotter, track_git=True)
+
+    # log the hyperparameters of the experiment
+    xp.config.update(**vars(args))
+    xp.config.record()
+    xp.gamma = logger.SimpleMetric()
+    xp.gamma_unclipped = logger.SimpleMetric()
+    xp.epsilon = logger.SimpleMetric()
+    return xp
+
+
+def store_in_xp(xp, **kwargs):
+    for (key, value) in kwargs.items():
+        if not hasattr(xp, key):
+            setattr(xp, key, logger.SimpleMetric())
+        metric = getattr(xp, key)
+        metric.update(value).record()
