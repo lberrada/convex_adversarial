@@ -22,7 +22,7 @@ def train_robust(xp, loader, model, opt, epsilon, epoch, log, verbose,
     errors = AverageMeter()
     robust_losses = AverageMeter()
     robust_errors = AverageMeter()
-    gamma = AverageMeter()
+    step_size = AverageMeter()
     gamma_unclipped = AverageMeter()
 
     model.train()
@@ -40,13 +40,14 @@ def train_robust(xp, loader, model, opt, epsilon, epoch, log, verbose,
             ce = nn.CrossEntropyLoss()(out, Variable(y))
             err = (out.max(1)[1] != y).float().sum()  / X.size(0)
 
-
         robust_ce, robust_err = robust_loss(model, epsilon,
                                              Variable(X), Variable(y),
                                              **kwargs)
         opt.zero_grad()
         robust_ce.backward()
 
+        err *= 100.
+        robust_err *= 100.
 
         if clip_grad:
             assert isinstance(opt, torch.optim.Optimizer), "clip grad only for torch optimizers"
@@ -59,7 +60,7 @@ def train_robust(xp, loader, model, opt, epsilon, epoch, log, verbose,
         errors.update(err.item(), X.size(0))
         robust_losses.update(robust_ce.detach().item(), X.size(0))
         robust_errors.update(robust_err, X.size(0))
-        gamma.update(opt.gamma)
+        step_size.update(opt.step_size)
         gamma_unclipped.update(opt.gamma_unclipped)
 
         # measure elapsed time
@@ -89,8 +90,8 @@ def train_robust(xp, loader, model, opt, epsilon, epoch, log, verbose,
     print('')
     clock += time.time()
     torch.cuda.empty_cache()
-    store_in_xp(xp, epoch=epoch, robust_loss_train=robust_losses.avg, robust_error_train=robust_errors.avg,
-                loss_train=losses.avg, error_train=errors.avg, gamma=gamma.avg, gamma_unclipped=gamma_unclipped.avg,
+    store_in_xp(xp, epoch=epoch + 1, robust_loss_train=robust_losses.avg, robust_error_train=robust_errors.avg,
+                loss_train=losses.avg, error_train=errors.avg, step_size=step_size.avg, gamma_unclipped=gamma_unclipped.avg,
                 timer_train=clock)
 
 
@@ -119,11 +120,14 @@ def evaluate_robust(xp, loader, model, epsilon, epoch, log, verbose,
         ce = nn.CrossEntropyLoss()(out, Variable(y))
         err = (out.max(1)[1] != y).float().sum()  / X.size(0)
 
+        err *= 100.
+        robust_err *= 100.
+
         # _,pgd_err = _pgd(model, Variable(X), Variable(y), epsilon)
 
         # measure accuracy and record loss
         losses.update(ce.item(), X.size(0))
-        errors.update(err, X.size(0))
+        errors.update(err.item(), X.size(0))
         robust_losses.update(robust_ce.item(), X.size(0))
         robust_errors.update(robust_err, X.size(0))
 
@@ -131,8 +135,7 @@ def evaluate_robust(xp, loader, model, epsilon, epoch, log, verbose,
         batch_time.update(time.time()-end)
         end = time.time()
 
-        print(epoch, i, robust_ce.item(), robust_err, ce.item(), err.item(),
-           file=log)
+        print(epoch, i, robust_ce.item(), robust_err, ce.item(), err.item(), file=log)
         if verbose:
             # print(epoch, i, robust_ce.data[0], robust_err, ce.data[0], err)
             endline = '\n' if i % verbose == 0 else '\r'

@@ -456,6 +456,8 @@ def argparser_evaluate(epsilon=0.1, norm='l1'):
 def create_xp(args):
     logger.set_default_indexing('increment')
     xp_name = "{}_{}_{}".format(args.opt, args.lr, args.weight_decay)
+    if args.proj is not None:
+        xp_name += "_proj{}".format(args.proj)
     setproctitle.setproctitle(xp_name)
     plotter = logger.Plotter(visdom_opts={'server': 'http://atlas.robots.ox.ac.uk', 'port': 9006, 'env': xp_name}, mode='automatic')
     xp = logger.Experiment(name=xp_name, plotter=plotter, track_git=True)

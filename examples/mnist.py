@@ -9,7 +9,7 @@ import torch.optim as optim
 import torch.nn.functional as F
 from torch.autograd import Variable
 import torch.backends.cudnn as cudnn
-# cudnn.benchmark = True
+cudnn.benchmark = True
 
 import torchvision.transforms as transforms
 import torchvision.datasets as datasets
@@ -97,6 +97,7 @@ if __name__ == "__main__":
 
         for t in range(args.epochs):
             if args.opt != 'nr':
+                opt.step_size = opt.param_groups[0]['lr']
                 opt.gamma = opt.param_groups[0]['lr']
                 opt.gamma_unclipped = opt.param_groups[0]['lr']
                 lr_scheduler.step(epoch=max(t-len(eps_schedule), 0))
